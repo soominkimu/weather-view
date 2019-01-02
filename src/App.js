@@ -46,46 +46,47 @@ const gridVerticalYear = (ctx, x, y, gh, W) => {
   });
 }
 
+const fetchJSON = (url, callback) => {
+  fetch(url)
+    .then(response => {
+       const contentType = response.headers.get("content-type");
+       console.log('contentType:', contentType);
+       if (contentType && contentType.includes("application/json"))
+         return response.json();
+       throw new TypeError("Opps, no JSON file!");
+    })  // parses response to JSON
+    .then(data => callback(data))
+    .catch(error => console.log(error));
+}
+
 class CanvasCompo extends React.Component {
   constructor(props) {
     super(props);
     this.w = 4;
     this.h = 2;
-    //this.updateCanvas = this.updateCanvas.bind(this);
+    this.updateCanvas = this.updateCanvas.bind(this);  // callback from fetch
   }
 
   componentDidMount() {
     // ~/D/nodejs/fileserver$ node server.js
-    fetch('http://localhost:9001/dataJSON/M_tokyo-Max.json')
-      .then(response => {
-         const contentType = response.headers.get("content-type");
-         console.log('contentType:', contentType);
-         if (contentType && contentType.includes("application/json"))
-           return response.json();
-         throw new TypeError("Opps, no JSON file!");
-      })  // parses response to JSON
-      .then(data => {
-        this.weather = data;
-        this.updateCanvas();
-      })
-      .catch(error => console.log(error));
+    fetchJSON('http://localhost:9001/dataJSON/M_tokyo-Max.json', this.updateCanvas);
   }
 
   componentDidUpdate() {
     this.updateCanvas();
   }
 
-  updateCanvas() {
+  updateCanvas(wData) {
     const ctx = this.refs.canvas.getContext('2d');
     const m = {x: 10, y: 30};
     const w = this.w;
     const h = this.h;
-    const yrFr = Number(this.weather.meta.from.substring(0,4));
+    const yrFr = Number(wData.meta.from.substring(0,4));
     let bLeap = IsLeapYear(2018);
     let y=0;  // year count
     let d=0;  // day (data) count, 0 at the first day of each year
     let p = {x: m.x, y: m.y};  // to save calculations
-    console.log(yrFr, this.weather.data.length, 'lines of data');
+    console.log(yrFr, wData.data.length, 'lines of data');
 
     const lh = 20;  // legend height
     let grd = ctx.createLinearGradient(m.x, m.y, w*(143+1), 0);
@@ -134,7 +135,7 @@ class CanvasCompo extends React.Component {
     ctx.fillStyle = gd;
     ctx.fillRect(p.x, m.y, w, h*366);
     */
-    this.weather.data.forEach(data => {
+    wData.data.forEach(data => {
       if (data !== null) {
         ctx.fillStyle = heatMapColor(tempPercent(data), 1);  // hsla
         ctx.fillRect(p.x, p.y, w, h);
