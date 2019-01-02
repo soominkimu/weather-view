@@ -10,6 +10,8 @@ import {
   heatMapColor
 } from './WeatherUtil';
 
+//import weatherData from './dataJSON/M_tokyo-Avg.json';
+
 const drawLine = (ctx, x, y, x2, y2) => {
   ctx.beginPath();
   ctx.moveTo(x, y);
@@ -53,13 +55,20 @@ class CanvasCompo extends React.Component {
   }
 
   componentDidMount() {
-    import('./dataJSON/M_tokyo-Avg.json')  // dynamic import
-      .then(module => {
-        this.weather = module;
+    // ~/D/nodejs/fileserver$ node server.js
+    fetch('http://localhost:9001/dataJSON/M_tokyo-Max.json')
+      .then(response => {
+         const contentType = response.headers.get("content-type");
+         console.log('contentType:', contentType);
+         if (contentType && contentType.includes("application/json"))
+           return response.json();
+         throw new TypeError("Opps, no JSON file!");
+      })  // parses response to JSON
+      .then(data => {
+        this.weather = data;
         this.updateCanvas();
       })
-      .catch(err => console.log(err));
-    this.updateCanvas();
+      .catch(error => console.log(error));
   }
 
   componentDidUpdate() {
@@ -71,12 +80,12 @@ class CanvasCompo extends React.Component {
     const m = {x: 10, y: 30};
     const w = this.w;
     const h = this.h;
- //   const yrFr = Number(this.weather.meta.from.substring(0,4));
+    const yrFr = Number(this.weather.meta.from.substring(0,4));
     let bLeap = IsLeapYear(2018);
     let y=0;  // year count
     let d=0;  // day (data) count, 0 at the first day of each year
     let p = {x: m.x, y: m.y};  // to save calculations
- //   console.log(yrFr, this.weather.data.length, 'lines of data');
+    console.log(yrFr, this.weather.data.length, 'lines of data');
 
     const lh = 20;  // legend height
     let grd = ctx.createLinearGradient(m.x, m.y, w*(143+1), 0);
@@ -125,7 +134,6 @@ class CanvasCompo extends React.Component {
     ctx.fillStyle = gd;
     ctx.fillRect(p.x, m.y, w, h*366);
     */
-/*
     this.weather.data.forEach(data => {
       if (data !== null) {
         ctx.fillStyle = heatMapColor(tempPercent(data), 1);  // hsla
@@ -148,7 +156,6 @@ class CanvasCompo extends React.Component {
         }
       }
     });
-*/
     ctx.lineWidth = .5;
     ctx.strokeStyle = "rgba(0,0,0, .5)";
     drawGrid(ctx, m.x, m.y, w, h, w*(y+1), h*366);
@@ -159,7 +166,7 @@ class CanvasCompo extends React.Component {
 
   render() {
     return (
-      <canvas ref="canvas" width={40+4*144} height={40+2*366*3} />
+      <canvas ref="canvas" width={40+this.w*144} height={40+this.h*366*3} />
     );
   }
 }
