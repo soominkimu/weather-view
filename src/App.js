@@ -7,6 +7,7 @@ import {
 import {
   tempPercent,
   //humidityPercent,
+  perc2Temp,
   heatMapColor
 } from './WeatherUtil';
 
@@ -46,6 +47,58 @@ const gridVerticalYear = (ctx, x, y, gh, W) => {
   });
 }
 
+const Legend = ({bCelsius, itemName}) => {
+  const sz      = {x: 10, y: 10};   // size of the unit rectangle
+  const margin  = {x: 5,  y: 5};
+  const headLen = 26;    // height of the title header space
+  const num     = 16+1;  // number of scales: (max - min) divisors, 2^n+1
+  const divisor = (num-1)/4;
+  let lnsStop   = [];
+  //let lnsRect   = [];
+  let lnsText   = [];
+  const svgSz   = {
+    x: margin.x*2 + sz.x + 20,
+    y: margin.y*2 + headLen + sz.y*num
+  };
+  
+  for (let i=0; i < num; i++) {
+    let perc = 1 - i/(num-1);
+    lnsStop.push(<stop key={i} offset={(1-perc)*100 + '%'} stopColor={heatMapColor(perc)} />);
+
+    if (i % divisor === 0) {
+      lnsText.push(
+        <text
+          key={i}
+          x={margin.x + sz.x + 1}
+          y={margin.y + headLen + i*sz.y + Math.floor(sz.y/1.5)}
+        >{bCelsius ? (perc2Temp(perc) + '°C') : (Math.floor(perc*100) + '%')}</text>
+      );
+    }
+  }
+  
+  return (
+    <div>
+      <svg width ={svgSz.x} height={svgSz.y}
+        style ={{border: "1px solid Beige", backgroundColor: "Ivory"}}
+      >
+        <text x={svgSz.x/2} y={12} fontSize=".8em" textAnchor="middle">
+          {itemName[0]}
+          <tspan x={svgSz.x/2} y={10+14} fill="DarkRed">{itemName[1]}</tspan>
+        </text>
+        <defs>
+          <linearGradient id="GradLegend01" x1="0%" y1="0%" x2="0%" y2="100%">
+            {lnsStop}
+          </linearGradient>
+        </defs>
+        <rect x={margin.x} y={margin.y + headLen} width={sz.x} height={sz.y*num} fill="url(#GradLegend01)" />
+        <g fontFamily="Verdana" fontSize=".5em" textAnchor="left">
+          {lnsText}
+        </g>
+      </svg>
+    </div>
+  );
+}
+
 const fetchJSON = (url, callback) => {
   fetch(url)
     .then(response => {
@@ -69,7 +122,8 @@ class CanvasCompo extends React.Component {
 
   componentDidMount() {
     // ~/D/nodejs/fileserver$ node server.js
-    fetchJSON('http://localhost:9001/dataJSON/M_tokyo-Max.json', this.updateCanvas);
+    //fetchJSON('http://localhost:9001/dataJSON/M_tokyo-Avg.json', this.updateCanvas);
+    fetchJSON('https://soominkimu.github.io/data/M_tokyo-Avg.json', this.updateCanvas);
   }
 
   componentDidUpdate() {
@@ -82,14 +136,17 @@ class CanvasCompo extends React.Component {
     const w = this.w;
     const h = this.h;
     const yrFr = Number(wData.meta.from.substring(0,4));
-    let bLeap = IsLeapYear(2018);
+    const yrTo = Number(wData.meta.to.substring(0,4));
+    const yrTotal = yrTo - yrFr + 1;
+    console.log(yrFr, yrTo, yrTotal, "years of data");
+    let bLeap = IsLeapYear(yrFr);
     let y=0;  // year count
     let d=0;  // day (data) count, 0 at the first day of each year
     let p = {x: m.x, y: m.y};  // to save calculations
     console.log(yrFr, wData.data.length, 'lines of data');
 
     const lh = 20;  // legend height
-    let grd = ctx.createLinearGradient(m.x, m.y, w*(143+1), 0);
+    let grd = ctx.createLinearGradient(m.x, m.y, w*(yrTotal+1), 0);
     const pct_max = 1.2;
     const pct_min = -.2;
     const pct_w   = pct_max - pct_min;
@@ -104,7 +161,7 @@ class CanvasCompo extends React.Component {
     ctx.shadowOffsetY = 4;
     ctx.shadowBlur = 4;
     ctx.fillStyle = grd;
-    ctx.fillRect(m.x, m.y-lh-6, w*143, lh);
+    ctx.fillRect(m.x, m.y-lh-6, w*yrTotal, lh);
     ctx.restore();
     /*
     let gd = ctx.createLinearGradient(m.x, m.y, m.x, m.y+h*366);
@@ -177,7 +234,11 @@ class App extends React.Component {
   render() {
     return (
       <div className="App">
-        <CanvasCompo />
+        <h3 className="title">Average Temperature of Tokyo 1876~2019 (東京の平均気温、143年間)</h3>
+        <div className="content">
+          <CanvasCompo />
+          <Legend bCelsius={true} itemName={["平均","気温"]}/>
+        </div>
       </div>
     );
   }

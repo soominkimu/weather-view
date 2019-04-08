@@ -2,8 +2,8 @@
 const scaleRange = {
   temp : {
     min : 0,
-    max : 30,
-    w   : 30-0
+    max : 32,
+    w   : 32-0
   },
   humidity : {
     min : 10,
